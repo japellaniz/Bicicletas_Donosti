@@ -1,0 +1,59 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Anualmente Rutas principales
+
+```{r}
+library(magrittr)
+datos = readr::read_csv(file = "dat/historico_movimientos.csv")
+dplyr::glimpse(datos)
+datos_ruta <- datos %>% 
+  na.omit() %>%
+  dplyr::mutate(anno = lubridate::year(fecha_desenganche))%>%
+  dplyr::group_by(estacion_desenganche, estacion_enganche, anno) %>%
+  dplyr::mutate(contador= n())%>%
+  dplyr::mutate(ruta = paste0(as.character(estacion_desenganche),"-",as.character(estacion_enganche))) %>%
+  dplyr::group_by(anno,ruta,contador) %>%
+  dplyr::summarise() %>%
+  dplyr::arrange(anno,desc(contador)) %>%
+  dplyr::group_by(anno) %>%
+  dplyr::slice(1:10)
+
+```
+Identificar grupos de usuarios
+- Rutas principales
+- Rutas de usuarios
+```{r}
+datos_usuario_anno <- datos %>% 
+  na.omit() %>%
+  dplyr::mutate(anno = lubridate::year(fecha_desenganche))%>%
+  # dplyr::group_by(estacion_desenganche, estacion_enganche, anno) %>%
+  # dplyr::mutate(contador= n())%>%
+  dplyr::mutate(ruta = paste0(as.character(estacion_desenganche),"-",as.character(estacion_enganche)))%>%
+  dplyr::mutate(grupos_edad = ifelse(edad<18, 
+                                        "menor-18", 
+                                        ifelse (edad>=18 & edad <35, "18-35", ifelse(edad>=35 & edad <55, "35-55", ifelse(edad>55 & edad<65, "55-65", "mayor-65"))))) %>%
+  dplyr::group_by(anno,ruta,grupos_edad,tipo_usuario,codigo_postal) %>%
+  dplyr::mutate(contador= n()) %>%
+  dplyr::select(anno,ruta,grupos_edad,tipo_usuario, codigo_postal,contador) 
+
+
+datos_usuario_anno %>% dplyr::group_by(ruta,grupos_edad) %>% dplyr::summarise(contador = sum(contador)) %>% dplyr::select(ruta, grupos_edad, contador) %>% dplyr::group_by(grupos_edad) %>% dplyr::slice(1:3) %>% dplyr::arrange(grupos_edad,desc(contador)) %>%
+  ggplot2::ggplot(ggplot2::aes(x=ruta, y=contador))+
+  ggplot2::geom_col()+ 
+  ggplot2::scale_y_log10() +
+  ggplot2::facet_grid(grupos_edad ~ ., scales = "free_y")
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
