@@ -1,13 +1,13 @@
 ---
-title: "R Notebook"
+title: "Bicicletas Donosti II"
 output: html_notebook
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-
-Anualmente Rutas principales
+*******************************************************************************************
+Anualmente Rutas principales.
 
 ```{r}
 library(magrittr)
@@ -15,10 +15,10 @@ datos = readr::read_csv(file = "dat/historico_movimientos.csv")
 dplyr::glimpse(datos)
 datos_ruta <- datos %>% 
   na.omit() %>%
+  tidyr::unite(ruta, estacion_desenganche,estacion_enganche, sep = "-")%>%
   dplyr::mutate(anno = lubridate::year(fecha_desenganche))%>%
-  dplyr::group_by(estacion_desenganche, estacion_enganche, anno) %>%
-  dplyr::mutate(contador= n())%>%
-  dplyr::mutate(ruta = paste0(as.character(estacion_desenganche),"-",as.character(estacion_enganche))) %>%
+  dplyr::group_by(ruta, anno) %>%
+  dplyr::mutate(contador= n()) %>%
   dplyr::group_by(anno,ruta,contador) %>%
   dplyr::summarise() %>%
   dplyr::arrange(anno,desc(contador)) %>%
@@ -26,7 +26,7 @@ datos_ruta <- datos %>%
   dplyr::slice(1:10)
 
 ```
-Identificar grupos de usuarios
+Identificar grupos de usuarios:
 - Rutas principales
 - Rutas de usuarios
 ```{r}
@@ -37,8 +37,8 @@ datos_usuario_anno <- datos %>%
   dplyr::mutate(contador= n())%>%
   dplyr::mutate(ruta = paste0(as.character(estacion_desenganche),"-",as.character(estacion_enganche)))%>%
   dplyr::mutate(grupos_edad = ifelse(edad<18, 
-                                        "menor-18", 
-                                        ifelse (edad>=18 & edad <35, "18-35", ifelse(edad>=35 & edad <55, "35-55", ifelse(edad>55 & edad<65, "55-65", "mayor-65"))))) %>%
+                                        "-18", 
+                                        ifelse (edad>=18 & edad <35, "18-35", ifelse(edad>=35 & edad <55, "35-55", ifelse(edad>55 & edad<65, "55-65", "65-"))))) %>%
   dplyr::group_by(anno,ruta,grupos_edad,tipo_usuario,codigo_postal) %>%
   dplyr::mutate(contador= n()) %>%
   dplyr::select(anno,ruta,grupos_edad,tipo_usuario, codigo_postal,contador) 
