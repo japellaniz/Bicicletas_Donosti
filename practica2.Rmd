@@ -32,10 +32,8 @@ Identificar grupos de usuarios:
 ```{r}
 datos_usuario_anno <- datos %>% 
   na.omit() %>%
+  tidyr::unite(ruta, estacion_desenganche,estacion_enganche, sep = "-")%>%
   dplyr::mutate(anno = lubridate::year(fecha_desenganche))%>%
-  dplyr::group_by(estacion_desenganche, estacion_enganche, anno) %>%
-  dplyr::mutate(contador= n())%>%
-  dplyr::mutate(ruta = paste0(as.character(estacion_desenganche),"-",as.character(estacion_enganche)))%>%
   dplyr::mutate(grupos_edad = ifelse(edad<18, 
                                         "-18", 
                                         ifelse (edad>=18 & edad <35, "18-35", ifelse(edad>=35 & edad <55, "35-55", ifelse(edad>55 & edad<65, "55-65", "65-"))))) %>%
@@ -44,16 +42,26 @@ datos_usuario_anno <- datos %>%
   dplyr::select(anno,ruta,grupos_edad,tipo_usuario, codigo_postal,contador) 
 
 
-datos_usuario <- datos_usuario_anno %>% dplyr::group_by(ruta,grupos_edad) %>% dplyr::summarise(contador = sum(contador)) %>% dplyr::select(ruta, grupos_edad, contador) %>% dplyr::group_by(grupos_edad) %>% dplyr::slice(1:3) %>% dplyr::arrange(grupos_edad,desc(contador))
+datos_usuario <- datos_usuario_anno %>% 
+  dplyr::group_by(ruta,grupos_edad) %>% 
+  dplyr::summarise(contador = sum(contador)) %>% 
+  dplyr::select(ruta, grupos_edad, contador) %>% 
+  dplyr::group_by(grupos_edad) %>% 
+  dplyr::slice(1:3) %>% 
+  dplyr::arrange(grupos_edad,desc(contador))
   
-datos_usuario %>% ggplot2::ggplot(ggplot2::aes(x=ruta, y=contador))+
+datos_usuario %>% ggplot2::ggplot(ggplot2::aes(x=ruta, y=contador, fill = ruta))+
   ggplot2::geom_col()+ 
   ggplot2::scale_y_log10() +
-  ggplot2::facet_grid(grupos_edad ~ ., scales = "free_y")
+  ggplot2::facet_grid(grupos_edad ~ ., scales = "free_y") +
+  ggplot2::labs(title = "Comparativa de rutas por franja de edad")+
+  ggplot2::theme_bw()
 
 datos_usuario %>% ggplot2::ggplot(ggplot2::aes(x=grupos_edad, y=contador, fill = ruta))+
   ggplot2::geom_col(position = "dodge")+ 
-  ggplot2::scale_y_log10()
+  ggplot2::scale_y_log10() +
+  ggplot2::labs(title = "Principales rutas por franja de edad") +
+  ggplot2::theme_bw()
 
 ```
 
