@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Bicicletas Donosti"
 output: html_notebook
 ---
 
@@ -14,9 +14,9 @@ datos %>%
   na.omit() %>%
   dplyr::mutate(grupos_edad = ifelse(edad<18, 
                                         "1_menor_edad", 
-                                        ifelse (edad>=65, "3_jubilados", "2_adultos"))) %>% dplyr::group_by(grupos_edad) %>%
+                                        ifelse (edad>=65, "3_jubilados", "2_adultos"))) %>%   dplyr::group_by(grupos_edad) %>%
   dplyr::summarise(contador = n()) %>% 
-  ggplot2::ggplot(ggplot2::aes(x= grupos_edad, y = contador)) +
+  ggplot2::ggplot(ggplot2::aes(x= grupos_edad, y = contador, fill = grupos_edad)) +
   ggplot2::geom_col()
 ```
 
