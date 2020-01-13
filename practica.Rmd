@@ -6,6 +6,8 @@ output: html_notebook
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+*****************************************************************************************
+Vamos a segmentar los usuarios por edades y representarlo gráficamente.
 
 ```{r}
 library(magrittr)
@@ -18,6 +20,24 @@ datos %>%
   dplyr::summarise(contador = n()) %>% 
   ggplot2::ggplot(ggplot2::aes(x= grupos_edad, y = contador, fill = grupos_edad)) +
   ggplot2::geom_col()
+```
+Lo mismo que antes pero un poco más elaborado.
+
+```{r}
+datos_segmentados<- datos %>%
+  na.omit() %>%
+  dplyr::mutate(grupos_edad = ifelse(edad<18, 
+                                        "0-18", 
+                                        ifelse (edad>=65, "65-", "18-65"))) %>% 
+  dplyr::group_by(grupos_edad) %>%
+  dplyr::summarise(contador = n()) 
+datos_segmentados %>%
+  ggplot2::ggplot(ggplot2::aes(x= grupos_edad, y = contador, fill = grupos_edad)) +
+  ggplot2::geom_col()
+
+
+
+
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
