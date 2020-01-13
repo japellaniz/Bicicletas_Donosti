@@ -1,0 +1,93 @@
+---
+title: "Bicicletas Donosti con Tidyverse"
+output: html_notebook
+---
+
+1.- Importación de datos: parsing y formatos de variables (continuas, categóricas, 
+fechas, etc.)
+
+Datos capturados de la API del Ayuntamiento de Donosti.
+http://www.donostia.eus/info/ciudadano/Videowall.nsf/movimientos.xsp?
+  
+Tomamos los datos del 1er semestre del 2019
+
+```{r}
+library(magrittr)
+library(curl)
+fechas = seq(from = as.POSIXct("2019/01/01"),to = as.POSIXct("2019/06/30"), by = 24*60*60)
+url_src = "http://www.donostia.eus/info/ciudadano/Videowall.nsf/movimientos.xsp?"
+datos = data.frame()
+for (i in 1:length(fechas)){
+  fecha = fechas[i]
+  jsonurl = paste0(url_src,"fecha_inicial=",
+                   format(fecha, "%Y-%m-%d"),
+                   "%2000:00&fecha_final=",
+                   format(fecha, "%Y-%m-%d"),
+                   "%2023:59")
+  parte = jsonlite::fromJSON(txt=jsonurl, flatten = TRUE, simplifyDataFrame=TRUE)
+  datos = rbind(datos,parte)
+  print(jsonurl)
+}
+readr::write_csv(datos, "dat/historico_movimientos.csv", col_names = T)
+
+# Leemos de nuevo el fichero para adaptar mejor los tipos
+df = readr::read_csv(file = "dat/historico_movimientos.csv")
+
+dplyr::glimpse(df)
+summary(df)
+
+
+```
+
+
+
+
+```{r}
+# Aunque son pocos (5), corrregimos los valores "1000" en estación de enganche por el valor que aparece como estación de 
+# desenganche inmediatamente posterior en el tiempo. He comprobado que en la mayoría de los casos, como es natural, la bici
+# se desengancha de la estación a la que se enganchó por última vez.
+dfTemp <- df %>% 
+  dplyr::filter(estacion_enganche == "1000")
+
+for (i in 1:nrow(dfTemp)) {
+  bici = dfTemp$idbici[i]
+  dfTemp2 <- df %>% dplyr::filter(idbici == bici) %>% 
+    dplyr::arrange(fecha_desenganche)
+  ind <- dfTemp2 %>% dplyr::filter(estacion_enganche == "1000") %>% 
+    row.names() %>% 
+    as.integer()
+  dfTemp2$estacion_enganche[ind] = dfTemp2$estacion_desenganche[ind+1]
+  dfTemp$estacion_enganche[i] = dfTemp2$estacion_desenganche[ind+1]  
+}
+
+ 
+df$estacion_enganche[as.integer(row.names(dfTemp))] = 
+  dfTemp$estacion_enganche
+
+table(df$estacion_enganche) 
+c = levels(df$estacion_desenganche)
+df$estacion_enganche = factor(df$estacion_enganche, levels = c)
+
+str(df)
+table(df$idbici)
+plot(df$idbici)
+# Se ve que no hay un uso homogéneo de las bicis. Este dato se podría utilizar para
+# planificar los mantenimientos de las bicis.
+par(mfrow=c(2,1))
+plot(df$estacion_desenganche)
+plot(df$estacion_enganche)
+# Las estaciones tampoco tienen un uso homogéneo. Las que más se usan son la 1, la 12 
+# y la 14 y las que menos la 7, la 9 y la 13.
+
+
+```
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
