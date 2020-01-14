@@ -20,6 +20,7 @@ datos_ruta <- datos %>%
   dplyr::group_by(ruta, anno) %>%
   dplyr::mutate(contador= n()) %>%
   dplyr::group_by(anno,ruta,contador) %>%
+  dplyr::filter(contador>1) %>% 
   dplyr::summarise() %>%
   dplyr::arrange(anno,desc(contador)) %>%
   dplyr::group_by(anno) %>%
