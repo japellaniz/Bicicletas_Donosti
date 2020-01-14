@@ -47,28 +47,33 @@ summary(df)
 # desenganche inmediatamente posterior en el tiempo. He comprobado que en la mayoría de los casos, como es natural, la bici
 # se desengancha de la estación a la que se enganchó por última vez.
 dfTemp <- df %>% 
+  tibble::rowid_to_column() %>% 
   dplyr::filter(estacion_enganche == "1000")
 
 for (i in 1:nrow(dfTemp)) {
   bici = dfTemp$idbici[i]
-  dfTemp2 <- df %>% dplyr::filter(idbici == bici) %>% 
-    dplyr::arrange(fecha_desenganche)
+  dfTemp2 <- df %>% 
+    dplyr::filter(idbici == bici) 
+  dfTemp2 %<>% 
+    dplyr::arrange(fecha_desenganche) %>% 
+    tibble::rowid_to_column()
   ind <- dfTemp2 %>% dplyr::filter(estacion_enganche == "1000") %>% 
-    row.names() %>% 
+    dplyr::summarise(rowid) %>% 
     as.integer()
   dfTemp2$estacion_enganche[ind] = dfTemp2$estacion_desenganche[ind+1]
   dfTemp$estacion_enganche[i] = dfTemp2$estacion_desenganche[ind+1]  
 }
-
- 
-df$estacion_enganche[as.integer(row.names(dfTemp))] = 
+df %<>% tibble::rowid_to_column()
+df$estacion_enganche[dfTemp$rowid] = 
   dfTemp$estacion_enganche
 
 table(df$estacion_enganche) 
-c = levels(df$estacion_desenganche)
-df$estacion_enganche = factor(df$estacion_enganche, levels = c)
 
-str(df)
+rm(dfTemp)
+rm(dfTemp2)
+df = df[,-1]
+
+dplyr::glimpse(df)
 table(df$idbici)
 plot(df$idbici)
 # Se ve que no hay un uso homogéneo de las bicis. Este dato se podría utilizar para

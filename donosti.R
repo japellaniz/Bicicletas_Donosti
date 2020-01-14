@@ -30,10 +30,10 @@ for (i in 1:length(fechas)){
   datos = rbind(datos,parte)
   print(jsonurl)
 }
-write.csv(datos, "historico_movimientos.csv", row.names = F)
+write.csv(datos, "dat/historico_movimientos.csv", row.names = F)
 
 # Leemos de nuevo el fichero para adaptar mejor los tipos
-df = read.csv(file = "historico_movimientos.csv", header = TRUE)
+df = read.csv(file = "dat/historico_movimientos.csv", header = TRUE)
 
 summary(df)
 str(df)
