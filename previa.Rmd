@@ -48,12 +48,13 @@ summary(df)
 # se desengancha de la estación a la que se enganchó por última vez.
 dfTemp <- df %>% 
   tibble::rowid_to_column() %>% 
-  dplyr::filter(estacion_enganche == "1000")
+  dplyr::filter(xor(estacion_enganche == "1000", estacion_desenganche == "1000"))
 
 for (i in 1:nrow(dfTemp)) {
   bici = dfTemp$idbici[i]
+  rfid = dfTemp$idrfid[i]
   dfTemp2 <- df %>% 
-    dplyr::filter(idbici == bici) 
+    dplyr::filter(idbici == bici & idrfid == rfid ) 
   dfTemp2 %<>% 
     dplyr::arrange(fecha_desenganche) %>% 
     tibble::rowid_to_column()
@@ -67,22 +68,22 @@ df %<>% tibble::rowid_to_column()
 df$estacion_enganche[dfTemp$rowid] = 
   dfTemp$estacion_enganche
 
-table(df$estacion_enganche) 
+table(df$estacion_enganche)
+table(df$estacion_desenganche)
+
+# Se han eliminado 49 inconsistencias con el método anterior.
+# El resto, las borramos
+
+df <- df %>%dplyr::filter(estacion_enganche != "1000" & estacion_desenganche != "1000") %>% 
+  dplyr::filter(estacion_enganche != "2008" & estacion_desenganche != "2008")
 
 rm(dfTemp)
 rm(dfTemp2)
 df = df[,-1]
 
 dplyr::glimpse(df)
-table(df$idbici)
-plot(df$idbici)
-# Se ve que no hay un uso homogéneo de las bicis. Este dato se podría utilizar para
-# planificar los mantenimientos de las bicis.
-par(mfrow=c(2,1))
-plot(df$estacion_desenganche)
-plot(df$estacion_enganche)
-# Las estaciones tampoco tienen un uso homogéneo. Las que más se usan son la 1, la 12 
-# y la 14 y las que menos la 7, la 9 y la 13.
+summary(df)
+readr::write_csv(df, "dat/historico_movimientos.csv", col_names = T)
 
 
 ```
