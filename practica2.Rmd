@@ -11,7 +11,7 @@ Anualmente Rutas principales.
 
 ```{r}
 library(magrittr)
-datos = readr::read_csv(file = "dat/historico_movimientos.csv")
+datos = readr::read_csv(file = "historico_movimientos.csv")
 dplyr::glimpse(datos)
 datos_ruta <- datos %>% 
   na.omit() %>%
@@ -20,7 +20,7 @@ datos_ruta <- datos %>%
   dplyr::group_by(ruta, anno) %>%
   dplyr::mutate(contador= n()) %>%
   dplyr::group_by(anno,ruta,contador) %>%
-  dplyr::filter(contador>1) %>% 
+  dplyr::filter(contador>20) %>% 
   dplyr::summarise() %>%
   dplyr::arrange(anno,desc(contador)) %>%
   dplyr::group_by(anno) %>%
@@ -62,6 +62,12 @@ datos_usuario %>% ggplot2::ggplot(ggplot2::aes(x=grupos_edad, y=contador, fill =
   ggplot2::geom_col(position = "dodge")+ 
   ggplot2::scale_y_log10() +
   ggplot2::labs(title = "Principales rutas por franja de edad") +
+  ggplot2::theme_bw()
+
+datos_ruta %>% ggplot2::ggplot(ggplot2::aes(x=anno, y=contador, fill = ruta))+
+  ggplot2::geom_col(position = "dodge")+ 
+  ggplot2::labs(title = "Principales rutas por año") +
+  ggplot2::xlab("Año")+
   ggplot2::theme_bw()
 
 ```

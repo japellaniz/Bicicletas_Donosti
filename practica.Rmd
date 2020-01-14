@@ -11,7 +11,7 @@ Vamos a segmentar los usuarios por edades y representarlo gráficamente.
 
 ```{r}
 library(magrittr)
-datos = readr::read_csv(file = "dat/historico_movimientos.csv")
+datos = readr::read_csv(file = "historico_movimientos.csv")
 datos %>%
   na.omit() %>%
   dplyr::mutate(grupos_edad = ifelse(edad<18, 
