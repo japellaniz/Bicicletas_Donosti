@@ -1,0 +1,173 @@
+---
+title: "Proyecto Bicicletas Donosti"
+output: html_notebook
+---
+Leemos los datos y los limpiamos de errores e incosistencias
+```{r}
+# Lectura de datos del proyecto original
+df = readr::read_csv(file = "dat/historico_movimientos.csv")
+
+df$codigo_postal = as.factor(df$codigo_postal)
+
+# Aunque son pocos (5), corrregimos los valores "1000" en estación de enganche por el valor que aparece como estación de 
+# desenganche inmediatamente posterior en el tiempo. He comprobado que en la mayoría de los casos, como es natural, la bici
+# se desengancha de la estación a la que se enganchó por última vez.
+dfTemp <- df %>% 
+  tibble::rowid_to_column() %>% 
+  dplyr::filter(xor(estacion_enganche == "1000", estacion_desenganche == "1000"))
+
+for (i in 1:nrow(dfTemp)) {
+  bici = dfTemp$idbici[i]
+  rfid = dfTemp$idrfid[i]
+  dfTemp2 <- df %>% 
+    dplyr::filter(idbici == bici & idrfid == rfid ) 
+  dfTemp2 %<>% 
+    dplyr::arrange(fecha_desenganche) %>% 
+    tibble::rowid_to_column()
+  ind <- dfTemp2 %>% dplyr::filter(estacion_enganche == "1000") %>% 
+    dplyr::summarise(rowid) %>% 
+    as.integer()
+  dfTemp2$estacion_enganche[ind] = dfTemp2$estacion_desenganche[ind+1]
+  dfTemp$estacion_enganche[i] = dfTemp2$estacion_desenganche[ind+1]  
+}
+df %<>% tibble::rowid_to_column()
+df$estacion_enganche[dfTemp$rowid] = 
+  dfTemp$estacion_enganche
+
+table(df$estacion_enganche)
+table(df$estacion_desenganche)
+
+# Se han eliminado 49 inconsistencias con el método anterior.
+# El resto, las borramos
+
+df %<>%dplyr::filter(estacion_enganche != "1000" & estacion_desenganche != "1000") %>% 
+  dplyr::filter(estacion_enganche != "2008" & estacion_desenganche != "2008")
+
+rm(dfTemp)
+rm(dfTemp2)
+df = df[,-1]
+
+# Pongo NA a las líneas con CP erróneo
+dfCPMal <- df %>% 
+  tibble::rowid_to_column() %>% 
+  dplyr::filter(codigo_postal <1000 | codigo_postal > 52700)
+
+df$codigo_postal[dfCPMal$rowid] = NA
+
+dplyr::glimpse(df)
+summary(df)
+readr::write_csv(df, "historico_movimientos.csv", col_names = T)
+
+```
+
+*****************************************************************************************
+Vamos a segmentar los usuarios por edades y representarlo gráficamente.
+```{r}
+library(magrittr)
+datos = readr::read_csv(file = "historico_movimientos.csv")
+datos %>%
+  na.omit() %>%
+  dplyr::mutate(grupos_edad = ifelse(edad<18, 
+                                        "1_menor_edad", 
+                                        ifelse (edad>=65, "3_jubilados", "2_adultos"))) %>%   dplyr::group_by(grupos_edad) %>%
+  dplyr::summarise(contador = n()) %>% 
+  ggplot2::ggplot(ggplot2::aes(x= grupos_edad, y = contador, fill = grupos_edad)) +
+  ggplot2::geom_col()
+```
+Lo mismo que antes pero un poco más elaborado.
+
+```{r}
+datos_segmentados<- datos %>%
+  na.omit() %>%
+  dplyr::mutate(grupos_edad = ifelse(edad<18, 
+                                        "0-18", 
+                                        ifelse (edad>=65, "65-", "18-65"))) %>% 
+  dplyr::group_by(grupos_edad) %>%
+  dplyr::summarise(contador = n()) 
+datos_segmentados %>%
+  ggplot2::ggplot(ggplot2::aes(x= grupos_edad, y = contador, fill = grupos_edad)) +
+  ggplot2::geom_col()
+```
+
+*******************************************************************************************
+Anualmente Rutas principales.
+```{r}
+library(magrittr)
+datos = readr::read_csv(file = "historico_movimientos.csv")
+dplyr::glimpse(datos)
+datos$codigo_postal=as.factor(datos$codigo_postal)
+datos_ruta <- datos %>% 
+  na.omit() %>%
+  tidyr::unite(ruta, estacion_desenganche,estacion_enganche, sep = "-")%>%
+  dplyr::mutate(anno = lubridate::year(fecha_desenganche))%>%
+  dplyr::group_by(ruta, anno) %>%
+  dplyr::mutate(contador= n()) %>%
+  dplyr::group_by(anno,ruta,contador) %>%
+  dplyr::filter(contador>20) %>% 
+  dplyr::summarise() %>%
+  dplyr::arrange(anno, desc(contador)) %>%
+  dplyr::group_by(anno) %>%
+  dplyr::slice(1:10)
+
+datos_ruta %>% ggplot2::ggplot(ggplot2::aes(x=anno, y=contador, fill = ruta))+
+  ggplot2::geom_col(position = "dodge")+ 
+  ggplot2::labs(title = "Principales rutas por año") +
+  ggplot2::xlab("Año")+
+  ggplot2::theme_bw()
+```
+
+Identificar grupos de usuarios:
+- Rutas principales
+- Rutas de usuarios
+
+```{r}
+datos_usuario_anno <- datos %>% 
+  na.omit() %>%
+  tidyr::unite(ruta, estacion_desenganche,estacion_enganche, sep = "-")%>%
+  dplyr::mutate(anno = lubridate::year(fecha_desenganche))%>%
+  dplyr::mutate(grupos_edad = ifelse(edad<18, 
+                                        "-18", 
+                                        ifelse (edad>=18 & edad <35, "18-35", ifelse(edad>=35 & edad <55, "35-55", ifelse(edad>55 & edad<65, "55-65", "65-"))))) %>%
+  dplyr::group_by(anno,ruta,grupos_edad,tipo_usuario,codigo_postal) %>%
+  dplyr::mutate(contador= n()) %>%
+  dplyr::select(anno,ruta,grupos_edad,tipo_usuario, codigo_postal,contador) 
+
+datos_usuario_cp <- datos_usuario_anno %>% 
+  dplyr::group_by(anno,codigo_postal) %>% 
+  dplyr::summarise(contador =sum(contador)) %>% 
+  dplyr::filter(contador>100) %>% 
+  dplyr::arrange(anno,desc(contador)) %>% 
+  dplyr::group_by(anno) %>% 
+  dplyr::slice(1:10)
+  
+datos_usuario_cp %>% ggplot2::ggplot(ggplot2::aes(x=anno, y=contador, fill=codigo_postal))+
+  ggplot2::geom_col(position = "dodge")+
+  ggplot2::labs(title = "Códigos Postales más frecuentes") +
+  ggplot2::theme_bw()+
+  ggplot2::xlab("Año")
+
+datos_usuario <- datos_usuario_anno %>% 
+  dplyr::group_by(ruta,grupos_edad) %>% 
+  dplyr::summarise(contador = sum(contador)) %>% 
+  dplyr::select(ruta, grupos_edad, contador) %>% 
+  dplyr::group_by(grupos_edad) %>% 
+  dplyr::slice(1:10) %>% 
+  dplyr::arrange(grupos_edad,desc(contador))
+  
+datos_usuario %>% ggplot2::ggplot(ggplot2::aes(x=ruta, y=contador, fill = ruta))+
+  ggplot2::geom_col()+ 
+  ggplot2::scale_y_log10() +
+  ggplot2::facet_grid(grupos_edad ~ ., scales = "free_y") +
+  ggplot2::labs(title = "Comparativa de rutas por franja de edad")+
+  ggplot2::theme_bw()
+
+datos_usuario %>% ggplot2::ggplot(ggplot2::aes(x=grupos_edad, y=contador, fill = ruta))+
+  ggplot2::geom_col(position = "dodge")+ 
+  ggplot2::scale_y_log10() +
+  ggplot2::labs(title = "Principales rutas por franja de edad") +
+  ggplot2::theme_bw()
+
+```
+
+
+
